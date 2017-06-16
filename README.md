@@ -74,9 +74,12 @@ https://forum.xda-developers.com/showthread.php?t=2239421 (Odds and Ends thread)
 Optional supported binaries which may be placed in /tools to enable built-in expanded functionality are as follows:
 * `mkbootfs` - for broken recoveries, or, booted flash support for a script or app via bind mounting to a /tmp directory
 * `flash_erase`, `nanddump`, `nandwrite` - MTD block device support for devices where the `dd` command is not sufficient
+* `pxa1088-unpackbootimg`, `pxa1088-mkbootimg` - Samsung/Marvell PXA1088 boot.img format variant support
+* `dumpimage`, `mkimage` - DENX U-Boot uImage format support
 * `unpackelf` - Sony ELF kernel.elf format support, repacking as AOSP standard boot.img for unlocked bootloaders
 * `mkmtkhdr` - MTK device boot image section headers support
 * `futility` + `chromeos` test keys directory - Google ChromeOS signature support
+* `BootSignature_Android.jar` + `avb` keys directory - Google Android Verified Boot (AVB) signature support
 * `blobpack` - Asus SignBlob signature support
 
 ## // Instructions ##
@@ -98,5 +101,7 @@ http://forum.xda-developers.com/android/software-hacking/dev-complete-shell-scri
 Not required, but any tweaks you can't hardcode into the source (best practice) should be added with an additional init.tweaks.rc or bootscript.sh to minimize the necessary ramdisk changes.
 
 It is also extremely important to note that for the broadest AK2 compatibility it is always better to modify a ramdisk file rather than replace it.
+
+If running into trouble when flashing an AK2 zip, the suffix -debugging may be added to the zip's filename to enable creation of a debug .tgz of /tmp for later examination while booted or on desktop.
 
 Have fun!

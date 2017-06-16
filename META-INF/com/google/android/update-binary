@@ -3,8 +3,8 @@
 # osm0sis @ xda-developers
 
 OUTFD=/proc/self/fd/$2;
-ZIP="$3";
-DIR=`dirname "$ZIP"`;
+ZIPFILE="$3";
+DIR=`dirname "$ZIPFILE"`;
 
 ui_print() {
   until [ ! "$1" ]; do
@@ -24,18 +24,20 @@ set_perm_recursive() {
 file_getprop() { grep "^$2" "$1" | cut -d= -f2; }
 getprop() { test -e /sbin/getprop && /sbin/getprop $1 || file_getprop /default.prop $1; }
 cleanup() { rm -rf /tmp/anykernel; }
-if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.cleanuponabort)" == 1 ]; then
-    abort() { ui_print "$*"; cleanup; umount /system; umount /data; exit 1; }
+abort() {
+  if [ ! -f /tmp/anykernel/anykernel.sh -o "$(file_getprop /tmp/anykernel/anykernel.sh do.cleanuponabort 2>/dev/null)" == 1 ]; then
+    ui_print "$*"; cleanup; umount /system; umount /data; exit 1;
   else
-    abort() { ui_print "$*"; umount /system; umount /data; exit 1; }
-fi;
+    ui_print "$*"; umount /system; umount /data; exit 1;
+  fi;
+}
 
 show_progress 1.34 4;
 ui_print " ";
 cleanup;
 mkdir -p /tmp/anykernel/bin;
 cd /tmp/anykernel;
-unzip -o "$ZIP";
+unzip -o "$ZIPFILE";
 if [ $? != 0 -o -z "$(ls /tmp/anykernel/tools)" ]; then
   abort "Unzip failed. Aborting...";
 fi;
@@ -46,9 +48,9 @@ ui_print "$(file_getprop /tmp/anykernel/anykernel.sh kernel.string)";
 ui_print " ";
 ui_print "AnyKernel2 by osm0sis @ xda-developers";
 ui_print " ";
-umount /system;
+umount /system 2>/dev/null;
 mount -o ro -t auto /system;
-mount /data;
+mount /data 2>/dev/null;
 test -f /system/system/build.prop && root=/system;
 
 if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.devicecheck)" == 1 ]; then
@@ -86,6 +88,14 @@ if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.modules)" == 1 ]; then
   set_perm_recursive 0 0 0755 0644 $root/system/lib/modules;
   mount -o ro,remount -t auto /system;
 fi;
+
+case $(basename "$ZIPFILE" .zip) in
+  *-debugging)
+    ui_print " ";
+    ui_print "Creating debugging archive in zip directory...";
+    $bb tar -czvf "$DIR/anykernel2-$(date +%Y-%m-%d_%H%M%S)-debug.tgz" /tmp/*;
+  ;;
+esac;
 
 if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.cleanup)" == 1 ]; then
   cleanup;
