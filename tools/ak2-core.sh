@@ -126,6 +126,7 @@ write_boot() {
     fi;
     if [ -f *-hash ]; then
       hash=`cat *-hash`;
+      test "$hash" == "unknown" && hash=sha1;
       hash="--hash $hash";
     fi;
     if [ -f *-unknown ]; then
@@ -199,8 +200,8 @@ write_boot() {
     fi;
     unset LD_LIBRARY_PATH;
     pk8=`ls $bin/avb/*.pk8`;
-    der=`ls $bin/avb/*.der`;
-    /system/bin/dalvikvm -Xbootclasspath:/system/framework/core-oj.jar:/system/framework/core-libart.jar:/system/framework/conscrypt.jar:/system/framework/bouncycastle.jar -Xnodex2oat -Xnoimage-dex2oat -cp BootSignature_Android.jar com.android.verity.BootSignature /boot boot-new.img $pk8 $der boot-new-signed.img;
+    cert=`ls $bin/avb/*.x509.*`;
+    /system/bin/dalvikvm -Xbootclasspath:/system/framework/core-oj.jar:/system/framework/core-libart.jar:/system/framework/conscrypt.jar:/system/framework/bouncycastle.jar -Xnodex2oat -Xnoimage-dex2oat -cp BootSignature_Android.jar com.android.verity.BootSignature /boot boot-new.img $pk8 $cert boot-new-signed.img;
     if [ $? != 0 ]; then
       ui_print " "; ui_print "Signing image failed. Aborting..."; exit 1;
     fi;
@@ -251,7 +252,11 @@ replace_section() {
   begin=`grep -n "$2" $1 | head -n1 | cut -d: -f1`;
   for end in `grep -n "$3" $1 | cut -d: -f1`; do
     if [ "$begin" -lt "$end" ]; then
-      sed -i "/${2//\//\\/}/,/${3//\//\\/}/d" $1;
+      if [ "$3" == " " ]; then
+        sed -i "/${2//\//\\/}/,/^\s*$/d" $1;
+      else
+        sed -i "/${2//\//\\/}/,/${3//\//\\/}/d" $1;
+      fi;
       sed -i "${begin}s;^;${4}\n;" $1;
       break;
     fi;
@@ -263,7 +268,11 @@ remove_section() {
   begin=`grep -n "$2" $1 | head -n1 | cut -d: -f1`;
   for end in `grep -n "$3" $1 | cut -d: -f1`; do
     if [ "$begin" -lt "$end" ]; then
-      sed -i "/${2//\//\\/}/,/${3//\//\\/}/d" $1;
+      if [ "$3" == " " ]; then
+        sed -i "/${2//\//\\/}/,/^\s*$/d" $1;
+      else
+        sed -i "/${2//\//\\/}/,/${3//\//\\/}/d" $1;
+      fi;
       break;
     fi;
   done;
