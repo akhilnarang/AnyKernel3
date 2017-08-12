@@ -35,6 +35,8 @@ dump_boot;
 
 # begin ramdisk changes
 
+insert_line default.prop "ro.sys.fw.bg_apps_limit=60" before "ro.secure=1" "ro.sys.fw.bg_apps_limit=60";
+
 # end ramdisk changes
 
 write_boot;
