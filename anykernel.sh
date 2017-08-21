@@ -35,6 +35,7 @@ dump_boot;
 
 # begin ramdisk changes
 
+insert_line init.qcom.rc "init.flash.rc" after "import init.qcom.usb.rc" "import init.flash.rc";
 insert_line default.prop "ro.sys.fw.bg_apps_limit=60" before "ro.secure=1" "ro.sys.fw.bg_apps_limit=60";
 
 # end ramdisk changes
