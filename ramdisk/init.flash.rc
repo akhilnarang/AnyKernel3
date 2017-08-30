@@ -1,4 +1,2 @@
 # Flash initialization script
-
-on property:sys.boot_completed=1
-    write /sys/block/sda/queue/scheduler bfq
+# Currently a no-op
