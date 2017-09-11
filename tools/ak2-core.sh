@@ -35,6 +35,11 @@ dump_boot() {
   else
     dd if=$block of=/tmp/anykernel/boot.img;
   fi;
+  if [ "$(strings /tmp/anykernel/boot.img | grep -E 'Green Loader|Green Recovery')" ]; then
+    mv -f /tmp/anykernel/boot.img /tmp/anykernel/boot-orig.img;
+    dd bs=1048576 count=1 conv=notrunc if=/tmp/anykernel/boot-orig.img of=$split_img/boot.img-master_boot.key;
+    dd bs=1048576 skip=1 conv=notrunc if=/tmp/anykernel/boot-orig.img of=/tmp/anykernel/boot.img;
+  fi;
   if [ -f "$bin/unpackelf" -a "$($bin/unpackelf -i /tmp/anykernel/boot.img -h -q 2>/dev/null; echo $?)" == 0 ]; then
     $bin/unpackelf -i /tmp/anykernel/boot.img -o $split_img;
     mv -f $split_img/boot.img-ramdisk.cpio.gz $split_img/boot.img-ramdisk.gz;
@@ -55,8 +60,10 @@ dump_boot() {
     else
       dumpfail=1;
     fi;
-  elif [ -f "$bin/pxa1088-unpackbootimg" ]; then
-    $bin/pxa1088-unpackbootimg -i /tmp/anykernel/boot.img -o $split_img;
+  elif [ -f "$bin/rkcrc" ]; then
+    dd bs=4096 skip=8 iflag=skip_bytes conv=notrunc if=/tmp/anykernel/boot.img of=$split_img/boot.img-ramdisk.gz;
+  elif [ -f "$bin/pxa-unpackbootimg" ]; then
+    $bin/pxa-unpackbootimg -i /tmp/anykernel/boot.img -o $split_img;
   else
     $bin/unpackbootimg -i /tmp/anykernel/boot.img -o $split_img;
   fi;
@@ -173,8 +180,10 @@ write_boot() {
   fi;
   if [ -f "$bin/mkimage" ]; then
     $bin/mkimage -A $arch -O $os -T $type -C $comp -a $addr -e $ep -n "$name" -d $kernel:$ramdisk boot-new.img;
-  elif [ -f "$bin/pxa1088-mkbootimg" ]; then
-    $bin/pxa1088-mkbootimg --kernel $kernel --ramdisk ramdisk-new.cpio.gz $second --cmdline "$cmdline" --board "$board" --base $base --pagesize $pagesize --kernel_offset $kerneloff --ramdisk_offset $ramdiskoff $secondoff --tags_offset "$tagsoff" --unknown $unknown $dtb --output boot-new.img;
+  elif [ -f "$bin/rkcrc" ]; then
+    $bin/rkcrc -k ramdisk-new.cpio.gz boot-new.img;
+  elif [ -f "$bin/pxa-mkbootimg" ]; then
+    $bin/pxa-mkbootimg --kernel $kernel --ramdisk ramdisk-new.cpio.gz $second --cmdline "$cmdline" --board "$board" --base $base --pagesize $pagesize --kernel_offset $kerneloff --ramdisk_offset $ramdiskoff $secondoff --tags_offset "$tagsoff" --unknown $unknown $dtb --output boot-new.img;
   else
     $bin/mkbootimg --kernel $kernel --ramdisk ramdisk-new.cpio.gz $second --cmdline "$cmdline" --board "$board" --base $base --pagesize $pagesize --kernel_offset $kerneloff --ramdisk_offset $ramdiskoff $secondoff --tags_offset "$tagsoff" --os_version "$osver" --os_patch_level "$oslvl" $hash $dtb --output boot-new.img;
   fi;
@@ -226,7 +235,15 @@ write_boot() {
     fi;
   fi;
   if [ "$(strings /tmp/anykernel/boot.img | grep SEANDROIDENFORCE )" ]; then
-    printf 'SEANDROIDENFORCE' >> /tmp/anykernel/boot-new.img;
+    printf 'SEANDROIDENFORCE' >> boot-new.img;
+  fi;
+  if [ -f "$bin/dhtbsign" ]; then
+    $bin/dhtbsign -i boot-new.img -o boot-new-signed.img;
+    mv -f boot-new-signed.img boot-new.img;
+  fi;
+  if [ -f "$split_img/boot.img-master_boot.key" ]; then
+    cat $split_img/boot.img-master_boot.key boot-new.img > boot-new-signed.img;
+    mv -f boot-new-signed.img boot-new.img;
   fi;
   if [ -f "$bin/flash_erase" -a -f "$bin/nandwrite" ]; then
     $bin/flash_erase $block 0 0;
