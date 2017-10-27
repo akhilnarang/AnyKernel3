@@ -32,7 +32,9 @@ chmod -R 750 $ramdisk/*;
 chmod -R root:root $ramdisk/*;
 
 ## Alert of unsupported Android version
-android_ver=$(mount /system; grep "^ro.build.version.release" /system/build.prop | cut -d= -f2; umount /system);
+android_ver=$(mount -o rw,remount -t auto /system;
+              grep "^ro.build.version.release" /system/build.prop | cut -d= -f2;
+              mount -o ro,remount -t auto /system);
 case "$android_ver" in
   "7.1.1"|"7.1.2") support_status="supported";;
   *) support_status="unsupported";;
