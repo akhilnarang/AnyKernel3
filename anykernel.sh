@@ -39,7 +39,8 @@ case "$android_ver" in
   "8.0.0") support_status="supported";;
   *) support_status="unsupported";;
 esac;
-ui_print "Running Android $android_ver, your version is $support_status for this release!";
+ui_print "Running Android $android_ver..."
+ui_print "This kernel is $support_status for this version!";
 
 ## AnyKernel install
 dump_boot;
