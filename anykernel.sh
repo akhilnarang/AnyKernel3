@@ -52,9 +52,8 @@ insert_line init.qcom.rc "init.flash.rc" after "import init.qcom.usb.rc" "import
 # Set the default background app limit to 60
 insert_line default.prop "ro.sys.fw.bg_apps_limit=60" before "ro.secure=1" "ro.sys.fw.bg_apps_limit=60";
 
-# Disable dm-verity on /system (due to changed modules)
-patch_fstab fstab.qcom /system ext4 options ",errors=panic" ""
-patch_fstab fstab.qcom /system ext4 flags ",verify" ""
+# Delete /system fstab mount (it's mounted in the kernel now)
+remove_line fstab.qcom "/dev/block/bootdevice/by-name/system"
 
 # end ramdisk changes
 
