@@ -19,6 +19,7 @@ device.name5=
 # shell variables
 block=/dev/block/bootdevice/by-name/boot;
 is_slot_device=0;
+ramdisk_compression=auto;
 
 
 ## AnyKernel methods (DO NOT CHANGE)
@@ -29,7 +30,7 @@ is_slot_device=0;
 ## AnyKernel file attributes
 # set permissions/ownership for included ramdisk files
 chmod -R 750 $ramdisk/*;
-chmod -R root:root $ramdisk/*;
+chown -R root:root $ramdisk/*;
 
 ## Alert of unsupported Android version
 android_ver=$(mount -o rw,remount -t auto /system;
