@@ -1,4 +1,0 @@
-# Flash initialization script
-
-on boot
-    write /sys/class/power_supply/usb/otg_switch 1

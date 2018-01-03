@@ -48,9 +48,6 @@ dump_boot;
 
 # begin ramdisk changes
 
-# Import Flash init file (currently a no-op)
-insert_line init.qcom.rc "init.flash.rc" after "import init.qcom.usb.rc" "import init.flash.rc";
-
 # Set the default background app limit to 60
 insert_line default.prop "ro.sys.fw.bg_apps_limit=60" before "ro.secure=1" "ro.sys.fw.bg_apps_limit=60";
 
