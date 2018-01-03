@@ -4,15 +4,15 @@
 ## AnyKernel setup
 # begin properties
 properties() {
-kernel.string=Flash Kernel for the OnePlus 5 by @nathanchance
+kernel.string=Flash Kernel for the OnePlus 5/T by @nathanchance
 do.devicecheck=1
 do.modules=1
 do.cleanup=1
 do.cleanuponabort=0
 device.name1=OnePlus5
-device.name2=oneplus5
+device.name2=OnePlus5T
 device.name3=cheeseburger
-device.name4=
+device.name4=dumpling
 device.name5=
 } # end properties
 
