@@ -99,6 +99,21 @@ if [ "$os" == "oos" ]; then
   $bin/sepolicy-inject -s init -t vendor_configs_file -c file -p mounton -P sepolicy_debug;
   $bin/sepolicy-inject -s init -t vendor_file -c file -p mounton -P sepolicy_debug;
   $bin/sepolicy-inject -s modprobe -t rootfs -c system -p module_load -P sepolicy_debug;
+
+  # Remove suspicious OnePlus services
+  remove_section init.oem.rc "service OPNetlinkService" "seclabel"
+  remove_section init.oem.rc "service wifisocket" "seclabel"
+  remove_section init.oem.rc "service oemsysd" "seclabel"
+  remove_section init.oem.rc "service oem_audio_device" "oneshot"
+  remove_section init.oem.rc "service smartadjust" "seclabel"
+  remove_section init.oem.rc "service atrace" "seclabel"
+  remove_section init.oem.rc "service sniffer_set" "seclabel"
+  remove_section init.oem.rc "service sniffer_start" "seclabel"
+  remove_section init.oem.rc "service sniffer_stop" "seclabel"
+  remove_section init.oem.rc "service tcpdump-service" "seclabel"
+  remove_section init.oem.debug.rc "service oemlogkit" "socket oemlogkit"
+  remove_section init.oem.debug.rc "service dumpstate_log" "seclabel"
+  remove_section init.oem.debug.rc "service oemasserttip" "disabled"
 else
   # Otherwise, just remove it
   rm -rf $ramdisk/modules
