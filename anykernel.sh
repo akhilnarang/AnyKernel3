@@ -51,9 +51,6 @@ dump_boot;
 # Set the default background app limit to 60
 insert_line default.prop "ro.sys.fw.bg_apps_limit=60" before "ro.secure=1" "ro.sys.fw.bg_apps_limit=60";
 
-# Delete /system fstab mount (it's mounted in the kernel now)
-remove_line fstab.qcom "/dev/block/bootdevice/by-name/system"
-
 # end ramdisk changes
 
 write_boot;
