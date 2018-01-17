@@ -37,7 +37,7 @@ android_ver=$(mount -o rw,remount -t auto /system;
               grep "^ro.build.version.release" /system/build.prop | cut -d= -f2;
               mount -o ro,remount -t auto /system);
 case "$android_ver" in
-  "8.0.0") support_status="supported";;
+  "8.0.0"|"8.1.0") support_status="supported";;
   *) support_status="unsupported";;
 esac;
 ui_print "Running Android $android_ver..."
