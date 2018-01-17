@@ -8,13 +8,20 @@ patch=/tmp/anykernel/patch;
 chmod -R 755 $bin;
 mkdir -p $ramdisk $split_img;
 
-OUTFD=/proc/self/fd/$1;
+FD=$1;
+OUTFD=/proc/self/fd/$FD;
 
 # ui_print <text>
 ui_print() { echo -e "ui_print $1\nui_print" > $OUTFD; }
 
 # contains <string> <substring>
 contains() { test "${1#*$2}" != "$1" && return 0 || return 1; }
+
+# reset anykernel directory
+reset_ak() {
+  rm -rf $ramdisk $split_img /tmp/anykernel/rdtmp /tmp/anykernel/boot.img /tmp/anykernel/*-new.*;
+  . /tmp/anykernel/tools/ak2-core.sh $FD;
+}
 
 # dump boot and extract ramdisk
 split_boot() {
@@ -32,6 +39,11 @@ split_boot() {
     dd bs=1048576 skip=1 conv=notrunc if=/tmp/anykernel/boot-orig.img of=/tmp/anykernel/boot.img;
   fi;
   if [ -f "$bin/unpackelf" -a "$($bin/unpackelf -i /tmp/anykernel/boot.img -h -q 2>/dev/null; echo $?)" == 0 ]; then
+    if [ -f "$bin/elftool" ]; then
+      mkdir $split_img/elftool_out;
+      $bin/elftool unpack -i /tmp/anykernel/boot.img -o $split_img/elftool_out;
+      cp -f $split_img/elftool_out/header $split_img/boot.img-header;
+    fi;
     $bin/unpackelf -i /tmp/anykernel/boot.img -o $split_img;
     mv -f $split_img/boot.img-ramdisk.cpio.gz $split_img/boot.img-ramdisk.gz;
   elif [ -f "$bin/dumpimage" ]; then
@@ -48,9 +60,8 @@ split_boot() {
     test $? != 0 && dumpfail=1;
     if [ "$(cat $split_img/boot.img-type)" == "Multi" ]; then
       $bin/dumpimage -i /tmp/anykernel/boot.img -p 1 $split_img/boot.img-ramdisk.gz;
-    else
-      dumpfail=1;
     fi;
+    test $? != 0 && dumpfail=1;
   elif [ -f "$bin/rkcrc" ]; then
     dd bs=4096 skip=8 iflag=skip_bytes conv=notrunc if=/tmp/anykernel/boot.img of=$split_img/boot.img-ramdisk.gz;
   elif [ -f "$bin/pxa-unpackbootimg" ]; then
@@ -197,12 +208,14 @@ flash_boot() {
   for i in dtb dt.img; do
     if [ -f /tmp/anykernel/$i ]; then
       dtb="--dt /tmp/anykernel/$i";
+      rpm="/tmp/anykernel/$i,rpm";
       break;
     fi;
   done;
   if [ ! "$dtb" -a -f *-dtb ]; then
     dtb=`ls *-dtb`;
     dtb="--dt $split_img/$dtb";
+    rpm="$split_img/$dtb,rpm";
   fi;
   cd /tmp/anykernel;
   if [ -f "$bin/mkmtkhdr" ]; then
@@ -212,7 +225,10 @@ flash_boot() {
     esac;
   fi;
   if [ -f "$bin/mkimage" ]; then
-    $bin/mkimage -A $arch -O $os -T $type -C $comp -a $addr -e $ep -n "$name" -d $kernel:$rd boot-new.img;
+    test "$type" == "Multi" && uramdisk=":$rd";
+    $bin/mkimage -A $arch -O $os -T $type -C $comp -a $addr -e $ep -n "$name" -d $kernel$uramdisk boot-new.img;
+  elif [ -f "$bin/elftool" ]; then
+    $bin/elftool pack -o boot-new.img header=$split_img/boot.img-header $kernel $rd,ramdisk $rpm $split_img/boot.img-cmdline@cmdline;
   elif [ -f "$bin/rkcrc" ]; then
     $bin/rkcrc -k $rd boot-new.img;
   elif [ -f "$bin/pxa-mkbootimg" ]; then
@@ -240,13 +256,19 @@ flash_boot() {
       mount -o ro -t auto /dev/block/bootdevice/by-name/system$slot /system_root;
       mount -o bind /system_root/system /system;
     fi;
-    unset LD_LIBRARY_PATH;
     pk8=`ls $bin/avb/*.pk8`;
     cert=`ls $bin/avb/*.x509.*`;
-    /system/bin/dalvikvm -Xbootclasspath:/system/framework/core-oj.jar:/system/framework/core-libart.jar:/system/framework/conscrypt.jar:/system/framework/bouncycastle.jar -Xnodex2oat -Xnoimage-dex2oat -cp $bin/BootSignature_Android.jar com.android.verity.BootSignature /boot boot-new.img $pk8 $cert boot-new-signed.img;
+    case $block in
+      *recovery*|*SOS*) avbtype=recovery;;
+      *) avbtype=boot;;
+    esac;
+    savedpath="$LD_LIBRARY_PATH";
+    unset LD_LIBRARY_PATH;
+    /system/bin/dalvikvm -Xbootclasspath:/system/framework/core-oj.jar:/system/framework/core-libart.jar:/system/framework/conscrypt.jar:/system/framework/bouncycastle.jar -Xnodex2oat -Xnoimage-dex2oat -cp $bin/BootSignature_Android.jar com.android.verity.BootSignature /$avbtype boot-new.img $pk8 $cert boot-new-signed.img;
     if [ $? != 0 ]; then
       ui_print " "; ui_print "Signing image failed. Aborting..."; exit 1;
     fi;
+    test "$savedpath" && export LD_LIBRARY_PATH="$savedpath";
     mv -f boot-new-signed.img boot-new.img;
     if [ -d "/system_root" ]; then
       umount /system;
@@ -438,15 +460,16 @@ patch_fstab() {
   fi;
 }
 
-# patch_cmdline <cmdline match string> [<replacement string>]
+# patch_cmdline <cmdline match string> <replacement string>
 patch_cmdline() {
   cmdfile=`ls $split_img/*-cmdline`;
   if [ -z "$(grep "$1" $cmdfile)" ]; then
     cmdtmp=`cat $cmdfile`;
-    echo "$cmdtmp $1" > $cmdfile;
+    echo "$cmdtmp $2" > $cmdfile;
+    sed -i -e 's;  *; ;g' -e 's;[ \t]*$;;' $cmdfile;
   else
     match=$(grep -o "$1.*$" $cmdfile | cut -d\  -f1);
-    sed -i -e "s;${match};${2};" -e 's;  ; ;' -e 's;[ \t]*$;;' $cmdfile;
+    sed -i -e "s;${match};${2};" -e 's;  *; ;g' -e 's;[ \t]*$;;' $cmdfile;
   fi;
 }
 
