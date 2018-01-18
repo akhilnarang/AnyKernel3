@@ -40,6 +40,7 @@ case "$android_ver" in
   "8.0.0"|"8.1.0") support_status="supported";;
   *) support_status="unsupported";;
 esac;
+ui_print " ";
 ui_print "Running Android $android_ver..."
 ui_print "This kernel is $support_status for this version!";
 
