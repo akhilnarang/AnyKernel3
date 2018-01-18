@@ -32,10 +32,14 @@ ramdisk_compression=auto;
 chmod -R 750 $ramdisk/*;
 chown -R root:root $ramdisk/*;
 
-## Alert of unsupported Android version
-android_ver=$(mount -o rw,remount -t auto /system;
-              grep "^ro.build.version.release" /system/build.prop | cut -d= -f2;
-              mount -o ro,remount -t auto /system);
+# Mount system to get Android version and remove unneeded modules
+mount -o rw,remount -t auto /system;
+
+# Remove all non-wlan modules (they won't load anyways because we have MODULE_SIG enabled)
+find /system -iname '*.ko' ! -iname '*wlan*' -exec rm -rf {} \;
+
+# Alert of unsupported Android version
+android_ver=$(grep "^ro.build.version.release" /system/build.prop | cut -d= -f2);
 case "$android_ver" in
   "8.0.0"|"8.1.0") support_status="supported";;
   *) support_status="unsupported";;
@@ -43,6 +47,9 @@ esac;
 ui_print " ";
 ui_print "Running Android $android_ver..."
 ui_print "This kernel is $support_status for this version!";
+
+# Unmount system
+mount -o ro,remount -t auto /system;
 
 ## AnyKernel install
 dump_boot;
