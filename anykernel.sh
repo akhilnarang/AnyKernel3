@@ -60,8 +60,8 @@ dump_boot;
 insert_line default.prop "ro.sys.fw.bg_apps_limit=60" before "ro.secure=1" "ro.sys.fw.bg_apps_limit=60";
 
 # Disable sched_boost as it can hold cores at max frequency
-insert_line test "sched_boost 0" after "on property:sys.boot_completed=1" "    write /proc/sys/kernel/sched_boost 0"
-insert_line test "sched_boost 1" after "on property:sys.boot_completed=1" "    write /proc/sys/kernel/sched_boost 1"
+insert_line init.rc "sched_boost 0" after "on property:sys.boot_completed=1" "    write /proc/sys/kernel/sched_boost 0"
+insert_line init.rc "sched_boost 1" after "on property:sys.boot_completed=1" "    write /proc/sys/kernel/sched_boost 1"
 
 # end ramdisk changes
 
