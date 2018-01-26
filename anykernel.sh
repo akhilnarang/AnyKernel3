@@ -51,6 +51,11 @@ ui_print "This kernel is $support_status for this version!";
 # Unmount system
 mount -o ro,remount -t auto /system;
 
+if [ -f /tmp/anykernel/version ]; then
+  ui_print " ";
+  ui_print "Kernel version: $(cat /tmp/anykernel/version)";
+fi;
+
 ## AnyKernel install
 dump_boot;
 
