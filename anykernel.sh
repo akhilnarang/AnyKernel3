@@ -30,6 +30,7 @@ ramdisk_compression=auto;
 ## AnyKernel file attributes
 # set permissions/ownership for included ramdisk files
 chmod -R 750 $ramdisk/*;
+chmod 644 $ramdisk/WCNSS_qcom_cfg.ini;
 chmod 644 $ramdisk/modules/*;
 chown -R root:root $ramdisk/*;
 
@@ -63,6 +64,7 @@ insert_line init.rc "init.flash.rc" after "import /init.usb.rc" "import /init.fl
 $bin/sepolicy-inject -s init -t rootfs -c file -p execute_no_trans -P sepolicy;
 $bin/sepolicy-inject -s init -t rootfs -c system -p module_load -P sepolicy;
 $bin/sepolicy-inject -s init -t system_file -c file -p mounton -P sepolicy;
+$bin/sepolicy-inject -s init -t vendor_configs_file -c file -p mounton -P sepolicy;
 $bin/sepolicy-inject -s init -t vendor_file -c file -p mounton -P sepolicy;
 $bin/sepolicy-inject -s modprobe -t rootfs -c system -p module_load -P sepolicy;
 
@@ -70,6 +72,7 @@ $bin/sepolicy-inject -s modprobe -t rootfs -c system -p module_load -P sepolicy;
 $bin/sepolicy-inject -s init -t rootfs -c file -p execute_no_trans -P sepolicy_debug;
 $bin/sepolicy-inject -s init -t rootfs -c system -p module_load -P sepolicy_debug;
 $bin/sepolicy-inject -s init -t system_file -c file -p mounton -P sepolicy_debug;
+$bin/sepolicy-inject -s init -t vendor_configs_file -c file -p mounton -P sepolicy_debug;
 $bin/sepolicy-inject -s init -t vendor_file -c file -p mounton -P sepolicy_debug;
 $bin/sepolicy-inject -s modprobe -t rootfs -c system -p module_load -P sepolicy_debug;
 
