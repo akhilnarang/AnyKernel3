@@ -101,7 +101,10 @@ if [ "$os" == "oos" ]; then
   $bin/sepolicy-inject -s modprobe -t rootfs -c system -p module_load -P sepolicy_debug;
 else
   # Otherwise, just remove it
-  rm -rf $ramdisk/modules;
+  rm -rf $ramdisk/modules
+
+  # Some ROMs will need this
+  append_file init.flash.rc "boot_wlan" wlan;
 fi;
 
 # end ramdisk changes

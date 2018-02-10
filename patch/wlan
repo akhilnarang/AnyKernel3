@@ -1,0 +1,5 @@
+on property:sys.boot_completed=1
+    write /sys/kernel/boot_wlan/boot_wlan 1
+
+on property:sys.post_boot.parsed=1
+    write /sys/kernel/boot_wlan/boot_wlan 1
