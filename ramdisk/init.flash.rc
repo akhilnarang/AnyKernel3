@@ -1,12 +1,3 @@
-on boot
-    # bind mount wifi config file
-    mount auto /WCNSS_qcom_cfg.ini /vendor/etc/wifi/WCNSS_qcom_cfg.ini bind
-    # bind mount custom wifi module
-    rmmod wlan.ko
-    mount auto /modules/wlan.ko /system/lib/modules/wlan.ko bind
-    mount auto /modules/wlan.ko /vendor/lib/modules/wlan.ko bind
-    exec u:r:modprobe:s0 -- /vendor/bin/modprobe -a -d /vendor/lib/modules wlan
-
 on property:sys.boot_completed=1
     write /proc/sys/kernel/sched_boost 0
 

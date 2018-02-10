@@ -44,6 +44,26 @@ ui_print " ";
 ui_print "Running Android $android_ver..."
 ui_print "This kernel is $support_status for this version!";
 
+# Select the correct image to flash
+userflavor="$(grep "^ro.build.user" /system/build.prop | cut -d= -f2):$(grep "^ro.build.flavor" /system/build.prop | cut -d= -f2)";
+case "$userflavor" in
+  "OnePlus:OnePlus5-user"|"OnePlus:OnePlus5T-user")
+    os="oos";
+    os_string="OxygenOS";;
+  *)
+    os="custom";
+    os_string="a custom ROM";;
+esac;
+ui_print " ";
+ui_print "You are on $os_string!";
+if [ -f /tmp/anykernel/kernels/$os/Image.gz-dtb ]; then
+  mv /tmp/anykernel/kernels/$os/Image.gz-dtb /tmp/anykernel/Image.gz-dtb;
+else
+  ui_print " ";
+  ui_print "There is no kernel for your OS in this zip! Aborting..."; exit 1;
+fi;
+
+# Show the kernel version if there is one
 if [ -f /tmp/anykernel/version ]; then
   ui_print " ";
   ui_print "Kernel version: $(cat /tmp/anykernel/version)";
@@ -60,21 +80,29 @@ insert_line default.prop "ro.sys.fw.bg_apps_limit=60" before "ro.secure=1" "ro.s
 # Import init.flash.rc file
 insert_line init.rc "init.flash.rc" after "import /init.usb.rc" "import /init.flash.rc";
 
-# sepolicy
-$bin/sepolicy-inject -s init -t rootfs -c file -p execute_no_trans -P sepolicy;
-$bin/sepolicy-inject -s init -t rootfs -c system -p module_load -P sepolicy;
-$bin/sepolicy-inject -s init -t system_file -c file -p mounton -P sepolicy;
-$bin/sepolicy-inject -s init -t vendor_configs_file -c file -p mounton -P sepolicy;
-$bin/sepolicy-inject -s init -t vendor_file -c file -p mounton -P sepolicy;
-$bin/sepolicy-inject -s modprobe -t rootfs -c system -p module_load -P sepolicy;
+# If on OOS, we need the support to load the Wi-Fi module
+if [ "$os" == "oos" ]; then
+  prepend_file init.flash.rc "modules" modules;
 
-# sepolicy_debug
-$bin/sepolicy-inject -s init -t rootfs -c file -p execute_no_trans -P sepolicy_debug;
-$bin/sepolicy-inject -s init -t rootfs -c system -p module_load -P sepolicy_debug;
-$bin/sepolicy-inject -s init -t system_file -c file -p mounton -P sepolicy_debug;
-$bin/sepolicy-inject -s init -t vendor_configs_file -c file -p mounton -P sepolicy_debug;
-$bin/sepolicy-inject -s init -t vendor_file -c file -p mounton -P sepolicy_debug;
-$bin/sepolicy-inject -s modprobe -t rootfs -c system -p module_load -P sepolicy_debug;
+  # sepolicy
+  $bin/sepolicy-inject -s init -t rootfs -c file -p execute_no_trans -P sepolicy;
+  $bin/sepolicy-inject -s init -t rootfs -c system -p module_load -P sepolicy;
+  $bin/sepolicy-inject -s init -t system_file -c file -p mounton -P sepolicy;
+  $bin/sepolicy-inject -s init -t vendor_configs_file -c file -p mounton -P sepolicy;
+  $bin/sepolicy-inject -s init -t vendor_file -c file -p mounton -P sepolicy;
+  $bin/sepolicy-inject -s modprobe -t rootfs -c system -p module_load -P sepolicy;
+
+  # sepolicy_debug
+  $bin/sepolicy-inject -s init -t rootfs -c file -p execute_no_trans -P sepolicy_debug;
+  $bin/sepolicy-inject -s init -t rootfs -c system -p module_load -P sepolicy_debug;
+  $bin/sepolicy-inject -s init -t system_file -c file -p mounton -P sepolicy_debug;
+  $bin/sepolicy-inject -s init -t vendor_configs_file -c file -p mounton -P sepolicy_debug;
+  $bin/sepolicy-inject -s init -t vendor_file -c file -p mounton -P sepolicy_debug;
+  $bin/sepolicy-inject -s modprobe -t rootfs -c system -p module_load -P sepolicy_debug;
+else
+  # Otherwise, just remove it
+  rm -rf $ramdisk/modules;
+fi;
 
 # end ramdisk changes
 
