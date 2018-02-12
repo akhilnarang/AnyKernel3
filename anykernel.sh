@@ -117,6 +117,7 @@ if [ "$os" == "oos" ]; then
 else
   # Otherwise, just remove it
   rm -rf $ramdisk/modules
+  rm -rf $ramdisk/WCNSS_qcom_cfg.ini
 
   # Some ROMs will need this
   append_file init.flash.rc "boot_wlan" wlan;
