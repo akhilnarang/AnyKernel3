@@ -80,25 +80,25 @@ insert_line default.prop "ro.sys.fw.bg_apps_limit=60" before "ro.secure=1" "ro.s
 # Import init.flash.rc file
 insert_line init.rc "init.flash.rc" after "import /init.usb.rc" "import /init.flash.rc";
 
+# sepolicy
+$bin/sepolicy-inject -s init -t rootfs -c file -p execute_no_trans -P sepolicy;
+$bin/sepolicy-inject -s init -t rootfs -c system -p module_load -P sepolicy;
+$bin/sepolicy-inject -s init -t system_file -c file -p mounton -P sepolicy;
+$bin/sepolicy-inject -s init -t vendor_configs_file -c file -p mounton -P sepolicy;
+$bin/sepolicy-inject -s init -t vendor_file -c file -p mounton -P sepolicy;
+$bin/sepolicy-inject -s modprobe -t rootfs -c system -p module_load -P sepolicy;
+
+# sepolicy_debug
+$bin/sepolicy-inject -s init -t rootfs -c file -p execute_no_trans -P sepolicy_debug;
+$bin/sepolicy-inject -s init -t rootfs -c system -p module_load -P sepolicy_debug;
+$bin/sepolicy-inject -s init -t system_file -c file -p mounton -P sepolicy_debug;
+$bin/sepolicy-inject -s init -t vendor_configs_file -c file -p mounton -P sepolicy_debug;
+$bin/sepolicy-inject -s init -t vendor_file -c file -p mounton -P sepolicy_debug;
+$bin/sepolicy-inject -s modprobe -t rootfs -c system -p module_load -P sepolicy_debug;
+
 # If on OOS, we need the support to load the Wi-Fi module
 if [ "$os" == "oos" ]; then
   prepend_file init.flash.rc "modules" modules;
-
-  # sepolicy
-  $bin/sepolicy-inject -s init -t rootfs -c file -p execute_no_trans -P sepolicy;
-  $bin/sepolicy-inject -s init -t rootfs -c system -p module_load -P sepolicy;
-  $bin/sepolicy-inject -s init -t system_file -c file -p mounton -P sepolicy;
-  $bin/sepolicy-inject -s init -t vendor_configs_file -c file -p mounton -P sepolicy;
-  $bin/sepolicy-inject -s init -t vendor_file -c file -p mounton -P sepolicy;
-  $bin/sepolicy-inject -s modprobe -t rootfs -c system -p module_load -P sepolicy;
-
-  # sepolicy_debug
-  $bin/sepolicy-inject -s init -t rootfs -c file -p execute_no_trans -P sepolicy_debug;
-  $bin/sepolicy-inject -s init -t rootfs -c system -p module_load -P sepolicy_debug;
-  $bin/sepolicy-inject -s init -t system_file -c file -p mounton -P sepolicy_debug;
-  $bin/sepolicy-inject -s init -t vendor_configs_file -c file -p mounton -P sepolicy_debug;
-  $bin/sepolicy-inject -s init -t vendor_file -c file -p mounton -P sepolicy_debug;
-  $bin/sepolicy-inject -s modprobe -t rootfs -c system -p module_load -P sepolicy_debug;
 
   # Remove suspicious OnePlus services
   remove_section init.oem.rc "service OPNetlinkService" "seclabel"
@@ -116,7 +116,6 @@ if [ "$os" == "oos" ]; then
 else
   # Otherwise, just remove it
   rm -rf $ramdisk/modules
-  rm -rf $ramdisk/WCNSS_qcom_cfg.ini
 
   # Some ROMs will need this
   append_file init.flash.rc "boot_wlan" wlan;
