@@ -63,12 +63,6 @@ else
   ui_print "There is no kernel for your OS in this zip! Aborting..."; exit 1;
 fi;
 
-# Show the kernel version if there is one
-if [ -f /tmp/anykernel/version ]; then
-  ui_print " ";
-  ui_print "Kernel version: $(cat /tmp/anykernel/version)";
-fi;
-
 ## AnyKernel install
 dump_boot;
 
