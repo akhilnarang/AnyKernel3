@@ -110,9 +110,6 @@ if [ "$os" == "oos" ]; then
 else
   # Otherwise, just remove it
   rm -rf $ramdisk/modules
-
-  # Some ROMs will need this
-  append_file init.flash.rc "boot_wlan" wlan;
 fi;
 
 # end ramdisk changes
