@@ -38,6 +38,7 @@ abort() {
     cleanup;
   fi;
   umount /system;
+  umount /vendor 2>/dev/null;
   umount /data 2>/dev/null;
   exit 1;
 }
@@ -55,11 +56,27 @@ bb=/tmp/anykernel/tools/busybox;
 chmod 755 $bb;
 $bb chmod -R 755 /tmp/anykernel/tools /tmp/anykernel/bin;
 
+if [ -f /tmp/anykernel/banner ]; then
+  while IFS='' read -r line || $bb [[ -n "$line" ]]; do
+    ui_print "$line";
+  done < /tmp/anykernel/banner;
+  ui_print " ";
+  ui_print " ";
+fi;
+
 ui_print "$(file_getprop /tmp/anykernel/anykernel.sh kernel.string)";
+if [ -f /tmp/anykernel/version ]; then
+  ui_print " ";
+  ui_print "$(cat /tmp/anykernel/version)";
+  ui_print " ";
+fi;
 ui_print " ";
 ui_print "AnyKernel2 by osm0sis @ xda-developers";
 ui_print " ";
+ui_print " ";
+
 umount /system 2>/dev/null;
+umount /vendor 2>/dev/null;
 mount -o ro -t auto /system;
 mount -o ro -t auto /vendor 2>/dev/null;
 mount /data 2>/dev/null;
@@ -124,6 +141,8 @@ if [ "$(file_getprop /tmp/anykernel/anykernel.sh do.cleanup)" == 1 ]; then
 fi;
 
 umount /system;
+umount /vendor 2>/dev/null;
 umount /data 2>/dev/null;
+ui_print " ";
 ui_print " ";
 ui_print "Done!";
