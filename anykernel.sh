@@ -95,21 +95,21 @@ if [ "$os" == "oos" ]; then
   prepend_file init.flash.rc "modules" modules;
 
   # Remove recovery service so that TWRP isn't overwritten
-  remove_section init.rc "service flash_recovery" "oneshot"
+  remove_section init.rc "service flash_recovery" ""
 
   # Remove suspicious OnePlus services
-  remove_section init.oem.rc "service OPNetlinkService" "seclabel"
-  remove_section init.oem.rc "service wifisocket" "seclabel"
-  remove_section init.oem.rc "service oemsysd" "seclabel"
+  remove_section init.oem.rc "service OPNetlinkService" ""
+  remove_section init.oem.rc "service wifisocket" ""
+  remove_section init.oem.rc "service oemsysd" ""
   remove_section init.oem.rc "service oem_audio_device" "oneshot"
   remove_section init.oem.rc "service atrace" "seclabel"
-  remove_section init.oem.rc "service sniffer_set" "seclabel"
-  remove_section init.oem.rc "service sniffer_start" "seclabel"
+  remove_section init.oem.rc "service sniffer_set" ""
+  remove_section init.oem.rc "service sniffer_start" ""
   remove_section init.oem.rc "service sniffer_stop" "seclabel"
-  remove_section init.oem.rc "service tcpdump-service" "seclabel"
-  remove_section init.oem.debug.rc "service oemlogkit" "socket oemlogkit"
-  remove_section init.oem.debug.rc "service dumpstate_log" "seclabel"
-  remove_section init.oem.debug.rc "service oemasserttip" "disabled"
+  remove_section init.oem.rc "service tcpdump-service" ""
+  remove_section init.oem.debug.rc "service oemlogkit" ""
+  remove_section init.oem.debug.rc "service dumpstate_log" ""
+  remove_section init.oem.debug.rc "service oemasserttip" ""
 else
   # Otherwise, just remove it
   rm -rf $ramdisk/modules
