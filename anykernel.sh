@@ -94,6 +94,9 @@ $bin/sepolicy-inject -s modprobe -t rootfs -c system -p module_load -P sepolicy_
 if [ "$os" == "oos" ]; then
   prepend_file init.flash.rc "modules" modules;
 
+  # Remove recovery service so that TWRP isn't overwritten
+  remove_section init.rc "service flash_recovery" "oneshot"
+
   # Remove suspicious OnePlus services
   remove_section init.oem.rc "service OPNetlinkService" "seclabel"
   remove_section init.oem.rc "service wifisocket" "seclabel"
