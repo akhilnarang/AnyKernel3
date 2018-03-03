@@ -34,8 +34,11 @@ chmod 644 $ramdisk/WCNSS_qcom_cfg.ini;
 chmod 644 $ramdisk/modules/*;
 chown -R root:root $ramdisk/*;
 
+# system_getprop <prop>
+system_getprop() { grep "^$1=" /system/build.prop | cut -d= -f2; }
+
 # Alert of unsupported Android version
-android_ver=$(grep "^ro.build.version.release" /system/build.prop | cut -d= -f2);
+android_ver=$(system_getprop "ro.build.version.release");
 case "$android_ver" in
   "8.0.0"|"8.1.0") support_status="supported";;
   *) support_status="unsupported";;
@@ -45,7 +48,7 @@ ui_print "Running Android $android_ver..."
 ui_print "This kernel is $support_status for this version!";
 
 # Select the correct image to flash
-userflavor="$(grep "^ro.build.user" /system/build.prop | cut -d= -f2):$(grep "^ro.build.flavor" /system/build.prop | cut -d= -f2)";
+userflavor="$(system_getprop "ro.build.user"):$(system_getprop "ro.build.flavor")";
 case "$userflavor" in
   "OnePlus:OnePlus5-user"|"OnePlus:OnePlus5T-user")
     os="oos";
