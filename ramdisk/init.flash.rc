@@ -4,6 +4,3 @@ on post-fs
 
 on property:sys.boot_completed=1
     write /proc/sys/kernel/sched_boost 0
-
-on property:sys.post_boot.parsed=1
-    write /proc/sys/kernel/sched_boost 0
