@@ -17,6 +17,9 @@ ui_print() { echo -e "ui_print $1\nui_print" > $OUTFD; }
 # contains <string> <substring>
 contains() { test "${1#*$2}" != "$1" && return 0 || return 1; }
 
+# file_getprop <file> <property>
+file_getprop() { grep "^$2=" "$1" | cut -d= -f2; }
+
 # reset anykernel directory
 reset_ak() {
   rm -rf $ramdisk $split_img /tmp/anykernel/rdtmp /tmp/anykernel/boot.img /tmp/anykernel/*-new.*;
@@ -33,10 +36,15 @@ split_boot() {
   else
     dd if=$block of=/tmp/anykernel/boot.img;
   fi;
-  if [ "$(strings /tmp/anykernel/boot.img | grep -E 'Green Loader|Green Recovery')" ]; then
+  nooktest=$(strings /tmp/anykernel/boot.img | grep -E 'Red Loader|Green Loader|Green Recovery|eMMC boot.img|eMMC recovery.img|BauwksBoot');
+  if [ "$nooktest" ]; then
+    case $nooktest in
+      *BauwksBoot*) nookoff=262144;;
+      *) nookoff=1048576;;
+    esac;
     mv -f /tmp/anykernel/boot.img /tmp/anykernel/boot-orig.img;
-    dd bs=1048576 count=1 conv=notrunc if=/tmp/anykernel/boot-orig.img of=$split_img/boot.img-master_boot.key;
-    dd bs=1048576 skip=1 conv=notrunc if=/tmp/anykernel/boot-orig.img of=/tmp/anykernel/boot.img;
+    dd bs=$nookoff count=1 conv=notrunc if=/tmp/anykernel/boot-orig.img of=$split_img/boot.img-master_boot.key;
+    dd bs=$nookoff skip=1 conv=notrunc if=/tmp/anykernel/boot-orig.img of=/tmp/anykernel/boot.img;
   fi;
   if [ -f "$bin/unpackelf" -a "$($bin/unpackelf -i /tmp/anykernel/boot.img -h -q 2>/dev/null; echo $?)" == 0 ]; then
     if [ -f "$bin/elftool" ]; then
@@ -238,8 +246,6 @@ flash_boot() {
   fi;
   if [ $? != 0 ]; then
     ui_print " "; ui_print "Repacking image failed. Aborting..."; exit 1;
-  elif [ "$(wc -c < boot-new.img)" -gt "$(wc -c < boot.img)" ]; then
-    ui_print " "; ui_print "New image larger than boot partition. Aborting..."; exit 1;
   fi;
   if [ -f "$bin/futility" -a -d "$bin/chromeos" ]; then
     $bin/futility vbutil_kernel --pack boot-new-signed.img --keyblock $bin/chromeos/kernel.keyblock --signprivate $bin/chromeos/kernel_data_key.vbprivk --version 1 --vmlinuz boot-new.img --bootloader $bin/chromeos/empty --config $bin/chromeos/empty --arch arm --flags 0x1;
@@ -302,6 +308,8 @@ flash_boot() {
   fi;
   if [ ! -f /tmp/anykernel/boot-new.img ]; then
     ui_print " "; ui_print "Repacked image could not be found. Aborting..."; exit 1;
+  elif [ "$(wc -c < boot-new.img)" -gt "$(wc -c < boot.img)" ]; then
+    ui_print " "; ui_print "New image larger than boot partition. Aborting..."; exit 1;
   fi;
   if [ -f "$bin/flash_erase" -a -f "$bin/nandwrite" ]; then
     $bin/flash_erase $block 0 0;
@@ -348,32 +356,38 @@ replace_string() {
 # replace_section <file> <begin search string> <end search string> <replacement string>
 replace_section() {
   begin=`grep -n "$2" $1 | head -n1 | cut -d: -f1`;
-  for end in `grep -n "$3" $1 | cut -d: -f1`; do
-    if [ "$begin" -lt "$end" ]; then
-      if [ "$3" == " " -o -z "$3" ]; then
-        sed -i "/${2//\//\\/}/,/^\s*$/d" $1;
-      else
-        sed -i "/${2//\//\\/}/,/${3//\//\\/}/d" $1;
+  if [ "$begin" ]; then
+    test "$3" == " " -o -z "$3" && endstr='^$' || endstr="$3";
+    for end in `grep -n "$endstr" $1 | cut -d: -f1`; do
+      if [ "$end" ] && [ "$begin" -lt "$end" ]; then
+        if [ "$3" == " " -o -z "$3" ]; then
+          sed -i "/${2//\//\\/}/,/^\s*$/d" $1;
+        else
+          sed -i "/${2//\//\\/}/,/${3//\//\\/}/d" $1;
+        fi;
+        sed -i "${begin}s;^;${4}\n;" $1;
+        break;
       fi;
-      sed -i "${begin}s;^;${4}\n;" $1;
-      break;
-    fi;
-  done;
+    done;
+  fi;
 }
 
 # remove_section <file> <begin search string> <end search string>
 remove_section() {
   begin=`grep -n "$2" $1 | head -n1 | cut -d: -f1`;
-  for end in `grep -n "$3" $1 | cut -d: -f1`; do
-    if [ "$begin" -lt "$end" ]; then
-      if [ "$3" == " " -o -z "$3" ]; then
-        sed -i "/${2//\//\\/}/,/^\s*$/d" $1;
-      else
-        sed -i "/${2//\//\\/}/,/${3//\//\\/}/d" $1;
+  if [ "$begin" ]; then
+    test "$3" == " " -o -z "$3" && endstr='^$' || endstr="$3";
+    for end in `grep -n "$endstr" $1 | cut -d: -f1`; do
+      if [ "$end" ] && [ "$begin" -lt "$end" ]; then
+        if [ "$3" == " " -o -z "$3" ]; then
+          sed -i "/${2//\//\\/}/,/^\s*$/d" $1;
+        else
+          sed -i "/${2//\//\\/}/,/${3//\//\\/}/d" $1;
+        fi;
+        break;
       fi;
-      break;
-    fi;
-  done;
+    done;
+  fi;
 }
 
 # insert_line <file> <if search string> <before|after> <line match string> <inserted line>
@@ -384,7 +398,7 @@ insert_line() {
       after) offset=1;;
     esac;
     line=$((`grep -n "$4" $1 | head -n1 | cut -d: -f1` + offset));
-    if [ -f $1 ] && [ "$(wc -l $1 | cut -d\  -f1)" -lt "$line" ]; then
+    if [ -f $1 -a "$line" ] && [ "$(wc -l $1 | cut -d\  -f1)" -lt "$line" ]; then
       echo "$5" >> $1;
     else
       sed -i "${line}s;^;${5}\n;" $1;
