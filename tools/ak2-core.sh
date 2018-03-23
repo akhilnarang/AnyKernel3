@@ -6,7 +6,7 @@ split_img=/tmp/anykernel/split_img;
 patch=/tmp/anykernel/patch;
 
 chmod -R 755 $bin;
-mkdir -p $ramdisk $split_img;
+mkdir -p $split_img;
 
 FD=$1;
 OUTFD=/proc/self/fd/$FD;
@@ -22,7 +22,10 @@ file_getprop() { grep "^$2=" "$1" | cut -d= -f2; }
 
 # reset anykernel directory
 reset_ak() {
-  rm -rf $ramdisk $split_img /tmp/anykernel/rdtmp /tmp/anykernel/boot.img /tmp/anykernel/*-new.*;
+  for i in $ramdisk $split_img /tmp/anykernel/rdtmp /tmp/anykernel/boot.img /tmp/anykernel/*-new*; do
+    cp -af $i $(dirname /tmp/anykernel/*-files/current);
+  done;
+  rm -rf $ramdisk $split_img /tmp/anykernel/rdtmp /tmp/anykernel/boot.img /tmp/anykernel/*-new* /tmp/anykernel/*-files/current;
   . /tmp/anykernel/tools/ak2-core.sh $FD;
 }
 
@@ -270,9 +273,11 @@ flash_boot() {
     esac;
     savedpath="$LD_LIBRARY_PATH";
     unset LD_LIBRARY_PATH;
-    /system/bin/dalvikvm -Xbootclasspath:/system/framework/core-oj.jar:/system/framework/core-libart.jar:/system/framework/conscrypt.jar:/system/framework/bouncycastle.jar -Xnodex2oat -Xnoimage-dex2oat -cp $bin/BootSignature_Android.jar com.android.verity.BootSignature /$avbtype boot-new.img $pk8 $cert boot-new-signed.img;
-    if [ $? != 0 ]; then
-      ui_print " "; ui_print "Signing image failed. Aborting..."; exit 1;
+    if [ "$(/system/bin/dalvikvm -Xbootclasspath:/system/framework/core-oj.jar:/system/framework/core-libart.jar:/system/framework/conscrypt.jar:/system/framework/bouncycastle.jar -Xnodex2oat -Xnoimage-dex2oat -cp $bin/BootSignature_Android.jar com.android.verity.BootSignature -verify boot.img | grep VALID)" ]; then
+      /system/bin/dalvikvm -Xbootclasspath:/system/framework/core-oj.jar:/system/framework/core-libart.jar:/system/framework/conscrypt.jar:/system/framework/bouncycastle.jar -Xnodex2oat -Xnoimage-dex2oat -cp $bin/BootSignature_Android.jar com.android.verity.BootSignature /$avbtype boot-new.img $pk8 $cert boot-new-signed.img;
+      if [ $? != 0 ]; then
+        ui_print " "; ui_print "Signing image failed. Aborting..."; exit 1;
+      fi;
     fi;
     test "$savedpath" && export LD_LIBRARY_PATH="$savedpath";
     mv -f boot-new-signed.img boot-new.img;
@@ -345,6 +350,9 @@ write_boot() {
 
 # backup_file <file>
 backup_file() { test ! -f $1~ && cp $1 $1~; }
+
+# restore_file <file>
+restore_file() { test -f $1~ && mv -f $1~ $1; }
 
 # replace_string <file> <if search string> <original string> <replacement string>
 replace_string() {
@@ -496,6 +504,13 @@ patch_prop() {
     sed -i "${line}s;.*;${2}=${3};" $1;
   fi;
 }
+
+# allow multi-partition ramdisk modifying configurations (using reset_ak)
+if [ ! -d "$ramdisk" -a -d "$(basename $block)-files" ]; then
+  cp -af /tmp/anykernel/$(basename $block)-files/* /tmp/anykernel;
+  touch /tmp/anykernel/$(basename $block)-files/current;
+fi;
+test ! -d "$ramdisk" && mkdir -p $ramdisk;
 
 # slot detection enabled by is_slot_device=1 (from anykernel.sh)
 if [ "$is_slot_device" == 1 ]; then
