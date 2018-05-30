@@ -3,7 +3,7 @@
 
 ## AnyKernel setup
 # begin properties
-properties() {
+properties() { '
 kernel.string=Flash Kernel for the OnePlus 5/T by @nathanchance
 do.devicecheck=1
 do.modules=0
@@ -14,7 +14,7 @@ device.name2=OnePlus5T
 device.name3=cheeseburger
 device.name4=dumpling
 device.name5=
-} # end properties
+'; } # end properties
 
 # shell variables
 block=/dev/block/bootdevice/by-name/boot;
