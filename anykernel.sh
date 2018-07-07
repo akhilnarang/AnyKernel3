@@ -35,6 +35,13 @@ chmod 644 $ramdisk/modules/*;
 chown -R root:root $ramdisk/*;
 
 
+# Print message and exit
+die() {
+  ui_print " "; ui_print "$*";
+  exit 1;
+}
+
+
 # Alert of unsupported Android version
 android_ver=$(file_getprop /system/build.prop "ro.build.version.release");
 case "$android_ver" in
@@ -61,8 +68,7 @@ ui_print "You are on $os_string!";
 if [ -f /tmp/anykernel/kernels/$os/Image.gz-dtb ]; then
   mv /tmp/anykernel/kernels/$os/Image.gz-dtb /tmp/anykernel/Image.gz-dtb;
 else
-  ui_print " ";
-  ui_print "There is no kernel for your OS in this zip! Aborting..."; exit 1;
+  die "There is no kernel for your OS in this zip! Aborting...";
 fi;
 
 
