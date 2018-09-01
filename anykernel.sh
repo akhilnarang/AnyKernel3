@@ -34,7 +34,6 @@ chmod 644 $ramdisk/WCNSS_qcom_cfg.ini;
 chmod 644 $ramdisk/modules/*;
 chown -R root:root $ramdisk/*;
 
-
 # Print message and exit
 die() {
   ui_print " "; ui_print "$*";
