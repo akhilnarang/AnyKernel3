@@ -2,7 +2,7 @@ on boot
     exec u:r:magisk:s0 root root -- /init.derp.sh
     # bind mount custom wifi module
     rmmod wlan.ko
-    mount auto /modules/wlan.ko /system/lib/modules/wlan.ko bind
-    mount auto /modules/wlan.ko /vendor/lib/modules/wlan.ko bind
+    mount auto /modules/wlan.ko /system/lib/modules/qca_cld3_wlan.ko bind
+    mount auto /modules/wlan.ko /vendor/lib/modules/qca_cld3_wlan.ko bind
     exec u:r:modprobe:s0 -- /vendor/bin/modprobe -a -d /vendor/lib/modules wlan
 
