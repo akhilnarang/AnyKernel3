@@ -22,6 +22,7 @@ file_getprop() { grep "^$2=" "$1" | cut -d= -f2; }
 
 # reset anykernel directory
 reset_ak() {
+  local i;
   rm -rf $(dirname /tmp/anykernel/*-files/current)/ramdisk;
   for i in $ramdisk $split_img /tmp/anykernel/rdtmp /tmp/anykernel/boot.img /tmp/anykernel/*-new*; do
     cp -af $i $(dirname /tmp/anykernel/*-files/current);
@@ -32,6 +33,7 @@ reset_ak() {
 
 # dump boot and extract ramdisk
 split_boot() {
+  local nooktest nookoff dumpfail;
   if [ ! -e "$(echo $block | cut -d\  -f1)" ]; then
     ui_print " "; ui_print "Invalid partition. Aborting..."; exit 1;
   fi;
@@ -95,6 +97,7 @@ split_boot() {
   fi;
 }
 unpack_ramdisk() {
+  local compext unpackcmd;
   if [ -f "$bin/mkmtkhdr" ]; then
     dd bs=512 skip=1 conv=notrunc if=$split_img/boot.img-ramdisk.gz of=$split_img/temprd;
     mv -f $split_img/temprd $split_img/boot.img-ramdisk.gz;
@@ -127,6 +130,7 @@ dump_boot() {
 
 # repack ramdisk then build and write image
 repack_ramdisk() {
+  local compext repackcmd;
   case $ramdisk_compression in
     auto|"") compext=`echo $split_img/*-ramdisk.cpio.* | rev | cut -d. -f1 | rev`;;
     *) compext=$ramdisk_compression;;
@@ -155,7 +159,29 @@ repack_ramdisk() {
     mv -f ramdisk-new.cpio.$compext-mtk ramdisk-new.cpio.$compext;
   fi;
 }
+flash_dtbo() {
+  for i in dtbo dtbo.img; do
+    if [ -f /tmp/anykernel/$i ]; then
+      dtbo=$i;
+      break;
+    fi;
+  done;
+  if [ "$dtbo" ]; then
+    dtbo_block=/dev/block/bootdevice/by-name/dtbo$slot;
+    if [ ! -e "$(echo $dtbo_block)" ]; then
+      ui_print " "; ui_print "dtbo partition could not be found. Aborting..."; exit 1;
+    fi;
+    if [ -f "$bin/flash_erase" -a -f "$bin/nandwrite" ]; then
+      $bin/flash_erase $dtbo_block 0 0;
+      $bin/nandwrite -p $dtbo_block /tmp/anykernel/$dtbo;
+    else
+      dd if=/dev/zero of=$dtbo_block 2>/dev/null;
+      dd if=/tmp/anykernel/$dtbo of=$dtbo_block;
+    fi;
+  fi;
+}
 flash_boot() {
+  local name arch os type comp addr ep cmdline cmd board base pagesize kerneloff ramdiskoff tagsoff osver oslvl second secondoff hash unknown i kernel rd dtb rpm pk8 cert avbtype dtbo dtbo_block;
   cd $split_img;
   if [ -f "$bin/mkimage" ]; then
     name=`cat *-name`;
@@ -212,8 +238,8 @@ flash_boot() {
     kernel=`ls *-zImage`;
     kernel=$split_img/$kernel;
   fi;
-  if [ -f /tmp/anykernel/ramdisk-new.cpio.$compext ]; then
-    rd=/tmp/anykernel/ramdisk-new.cpio.$compext;
+  if [ -f /tmp/anykernel/ramdisk-new.cpio.* ]; then
+    rd=`echo /tmp/anykernel/ramdisk-new.cpio.*`;
   else
     rd=`ls *-ramdisk.*`;
     rd="$split_img/$rd";
@@ -309,30 +335,11 @@ flash_boot() {
     dd if=/dev/zero of=$block 2>/dev/null;
     dd if=/tmp/anykernel/boot-new.img of=$block;
   fi;
-  for i in dtbo dtbo.img; do
-    if [ -f /tmp/anykernel/$i ]; then
-      dtbo=$i;
-      break;
-    fi;
-  done;
-  if [ "$dtbo" ]; then
-    dtbo_block=`find /dev/block -iname dtbo$slot | head -n 1` 2>/dev/null;
-    [ ! -z $dtbo_block ] && dtbo_block=`readlink -f $dtbo_block`
-    if [ ! -e "$(echo $dtbo_block)" ]; then
-      ui_print " "; ui_print "dtbo partition could not be found. Aborting..."; exit 1;
-    fi;
-    if [ -f "$bin/flash_erase" -a -f "$bin/nandwrite" ]; then
-      $bin/flash_erase $dtbo_block 0 0;
-      $bin/nandwrite -p $dtbo_block /tmp/anykernel/$dtbo;
-    else
-      dd if=/dev/zero of=$dtbo_block 2>/dev/null;
-      dd if=/tmp/anykernel/$dtbo of=$dtbo_block;
-    fi;
-  fi;
 }
 write_boot() {
   repack_ramdisk;
   flash_boot;
+  flash_dtbo;
 }
 
 # backup_file <file>
@@ -344,22 +351,25 @@ restore_file() { test -f $1~ && mv -f $1~ $1; }
 # replace_string <file> <if search string> <original string> <replacement string>
 replace_string() {
   if [ -z "$(grep "$2" $1)" ]; then
-      sed -i "s;${3};${4};" $1;
+    sed -i "s;${3};${4};" $1;
   fi;
 }
 
 # replace_section <file> <begin search string> <end search string> <replacement string>
 replace_section() {
+  local begin endstr last end;
   begin=`grep -n "$2" $1 | head -n1 | cut -d: -f1`;
   if [ "$begin" ]; then
-    test "$3" == " " -o -z "$3" && endstr='^$' || endstr="$3";
-    for end in `grep -n "$endstr" $1 | cut -d: -f1`; do
+    if [ "$3" == " " -o -z "$3" ]; then
+      endstr='^[[:space:]]*$';
+      last=$(wc -l $1 | cut -d\  -f1);
+    else
+      endstr="$3";
+    fi;
+    for end in $(grep -n "$endstr" $1 | cut -d: -f1) $last; do
       if [ "$end" ] && [ "$begin" -lt "$end" ]; then
-        if [ "$3" == " " -o -z "$3" ]; then
-          sed -i "/${2//\//\\/}/,/^\s*$/d" $1;
-        else
-          sed -i "/${2//\//\\/}/,/${3//\//\\/}/d" $1;
-        fi;
+        sed -i "${begin},${end}d" $1;
+        test "$end" == "$last" && echo >> $1;
         sed -i "${begin}s;^;${4}\n;" $1;
         break;
       fi;
@@ -369,16 +379,18 @@ replace_section() {
 
 # remove_section <file> <begin search string> <end search string>
 remove_section() {
+  local begin endstr last end;
   begin=`grep -n "$2" $1 | head -n1 | cut -d: -f1`;
   if [ "$begin" ]; then
-    test "$3" == " " -o -z "$3" && endstr='^$' || endstr="$3";
-    for end in `grep -n "$endstr" $1 | cut -d: -f1`; do
+    if [ "$3" == " " -o -z "$3" ]; then
+      endstr='^[[:space:]]*$';
+      last=$(wc -l $1 | cut -d\  -f1);
+    else
+      endstr="$3";
+    fi;
+    for end in $(grep -n "$endstr" $1 | cut -d: -f1) $last; do
       if [ "$end" ] && [ "$begin" -lt "$end" ]; then
-        if [ "$3" == " " -o -z "$3" ]; then
-          sed -i "/${2//\//\\/}/,/^\s*$/d" $1;
-        else
-          sed -i "/${2//\//\\/}/,/${3//\//\\/}/d" $1;
-        fi;
+        sed -i "${begin},${end}d" $1;
         break;
       fi;
     done;
@@ -387,6 +399,7 @@ remove_section() {
 
 # insert_line <file> <if search string> <before|after> <line match string> <inserted line>
 insert_line() {
+  local offset line;
   if [ -z "$(grep "$2" $1)" ]; then
     case $3 in
       before) offset=0;;
@@ -404,7 +417,7 @@ insert_line() {
 # replace_line <file> <line replace string> <replacement line>
 replace_line() {
   if [ ! -z "$(grep "$2" $1)" ]; then
-    line=`grep -n "$2" $1 | head -n1 | cut -d: -f1`;
+    local line=`grep -n "$2" $1 | head -n1 | cut -d: -f1`;
     sed -i "${line}s;.*;${3};" $1;
   fi;
 }
@@ -412,7 +425,7 @@ replace_line() {
 # remove_line <file> <line match string>
 remove_line() {
   if [ ! -z "$(grep "$2" $1)" ]; then
-    line=`grep -n "$2" $1 | head -n1 | cut -d: -f1`;
+    local line=`grep -n "$2" $1 | head -n1 | cut -d: -f1`;
     sed -i "${line}d" $1;
   fi;
 }
@@ -426,6 +439,7 @@ prepend_file() {
 
 # insert_file <file> <if search string> <before|after> <line match string> <patch file>
 insert_file() {
+  local offset line;
   if [ -z "$(grep "$2" $1)" ]; then
     case $3 in
       before) offset=0;;
@@ -454,6 +468,7 @@ replace_file() {
 
 # patch_fstab <fstab file> <mount match name> <fs match type> <block|mount|fstype|options|flags> <original string> <replacement string>
 patch_fstab() {
+  local entry part newpart newentry;
   entry=$(grep "$2" $1 | grep "$3");
   if [ -z "$(echo "$entry" | grep "$6")" -o "$6" == " " -o -z "$6" ]; then
     case $4 in
@@ -471,6 +486,7 @@ patch_fstab() {
 
 # patch_cmdline <cmdline entry name> <replacement string>
 patch_cmdline() {
+  local cmdfile cmdtmp match;
   cmdfile=`ls $split_img/*-cmdline`;
   if [ -z "$(grep "$1" $cmdfile)" ]; then
     cmdtmp=`cat $cmdfile`;
@@ -487,8 +503,23 @@ patch_prop() {
   if [ -z "$(grep "^$2=" $1)" ]; then
     echo -ne "\n$2=$3\n" >> $1;
   else
-    line=`grep -n "^$2=" $1 | head -n1 | cut -d: -f1`;
+    local line=`grep -n "^$2=" $1 | head -n1 | cut -d: -f1`;
     sed -i "${line}s;.*;${2}=${3};" $1;
+  fi;
+}
+
+# patch_ueventd <ueventd file> <device node> <permissions> <chown> <chgrp>
+patch_ueventd() {
+  local file dev perm user group newentry line;
+  file=$1; dev=$2; perm=$3; user=$4;
+  shift 4;
+  group="$@";
+  newentry=$(printf "%-23s   %-4s   %-8s   %s\n" "$dev" "$perm" "$user" "$group");
+  line=`grep -n "$dev" $file | head -n1 | cut -d: -f1`;
+  if [ "$line" ]; then
+    sed -i "${line}s;.*;${newentry};" $file;
+  else
+    echo -ne "\n$newentry\n" >> $file;
   fi;
 }
 
@@ -503,22 +534,63 @@ if [ ! -d "$ramdisk" -a ! -d "$patch" ]; then
 fi;
 test ! -d "$ramdisk" && mkdir -p $ramdisk;
 
-# slot detection enabled by is_slot_device=1 (from anykernel.sh)
-if [ "$is_slot_device" == 1 -o "$is_slot_device" == "auto" ]; then
-  slot=$(getprop ro.boot.slot_suffix 2>/dev/null);
-  test ! "$slot" && slot=$(grep -o 'androidboot.slot_suffix=.*$' /proc/cmdline | cut -d\  -f1 | cut -d= -f2);
-  if [ ! "$slot" ]; then
-    slot=$(getprop ro.boot.slot 2>/dev/null);
-    test ! "$slot" && slot=$(grep -o 'androidboot.slot=.*$' /proc/cmdline | cut -d\  -f1 | cut -d= -f2);
-    test "$slot" && slot=_$slot;
-  fi;
-  if [ "$slot" ]; then
-    test -e "$block$slot" && block=$block$slot;
-  fi;
-  if [ $? != 0 -a "$is_slot_device" == 1 ]; then
-    ui_print " "; ui_print "Unable to determine active boot slot. Aborting..."; exit 1;
-  fi;
-fi;
+# slot detection enabled by is_slot_device=1 or auto (from anykernel.sh)
+case $is_slot_device in
+  1|auto)
+    slot=$(getprop ro.boot.slot_suffix 2>/dev/null);
+    test ! "$slot" && slot=$(grep -o 'androidboot.slot_suffix=.*$' /proc/cmdline | cut -d\  -f1 | cut -d= -f2);
+    if [ ! "$slot" ]; then
+      slot=$(getprop ro.boot.slot 2>/dev/null);
+      test ! "$slot" && slot=$(grep -o 'androidboot.slot=.*$' /proc/cmdline | cut -d\  -f1 | cut -d= -f2);
+      test "$slot" && slot=_$slot;
+    fi;
+    if [ ! "$slot" -a "$is_slot_device" == 1 ]; then
+      ui_print " "; ui_print "Unable to determine active boot slot. Aborting..."; exit 1;
+    fi;
+  ;;
+esac;
+
+# target block partition detection enabled by block=boot recovery or auto (from anykernel.sh)
+test "$block" == "auto" && block=boot;
+case $block in
+  boot|recovery)
+    case $block in
+      boot) parttype="ramdisk boot BOOT LNX android_boot KERN-A kernel KERNEL";;
+      recovery) parttype="ramdisk_recovey recovery RECOVERY SOS android_recovery";;
+    esac;
+    for name in $parttype; do
+      for part in $name $name$slot; do
+        if [ "$(grep -w "$part" /proc/mtd 2> /dev/null)" ]; then
+          mtdmount=$(grep -w "$part" /proc/mtd);
+          mtdpart=$(echo $mtdmount | cut -d\" -f2);
+          if [ "$mtdpart" == "$part" ]; then
+            mtd=$(echo $mtdmount | cut -d: -f1);
+          else
+            ui_print " "; ui_print "Unable to determine mtd $block partition. Aborting..."; exit 1;
+          fi;
+          target=/dev/mtd/$mtd;
+        elif [ -e /dev/block/bootdevice/by-name/$part ]; then
+          target=/dev/block/bootdevice/by-name/$part;
+        elif [ -e /dev/block/platform/*/by-name/$part ]; then
+          target=/dev/block/platform/*/by-name/$part;
+        elif [ -e /dev/block/platform/*/*/by-name/$part ]; then
+          target=/dev/block/platform/*/*/by-name/$part;
+        fi;
+        test -e "$target" && break 2;
+      done;
+    done;
+    if [ "$target" ]; then
+      block=$(echo -n $target);
+    else
+      ui_print " "; ui_print "Unable to determine $block partition. Aborting..."; exit 1;
+    fi;
+  ;;
+  *)
+    if [ "$slot" ]; then
+      test -e "$block$slot" && block=$block$slot;
+    fi;
+  ;;
+esac;
 
 ## end methods
 
