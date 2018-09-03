@@ -4,7 +4,7 @@
 ## AnyKernel setup
 # begin properties
 properties() { '
-kernel.string=Flash Kernel for the OnePlus 5/T by @nathanchance
+kernel.string=Derp Kernel for the OnePlus 5/T by Akhil
 do.devicecheck=1
 do.modules=0
 do.cleanup=1
