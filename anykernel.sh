@@ -41,18 +41,16 @@ die() {
   exit 1;
 }
 
-
-# Don't even think about flashing on Treble
+# Don't even think about flashing on non-Treble
 treble=$(file_getprop /system/build.prop "ro.treble.enabled");
-if [ ! -z $treble -a $treble == "true" ]; then
-  die "Flash Kernel is not compatible with Treble yet!";
+if [ ! -z $treble -a $treble != "true" ]; then
+  die "Derp Kernel is not compatible with non-Treble anymore!";
 fi;
-
 
 # Alert of unsupported Android version
 android_ver=$(file_getprop /system/build.prop "ro.build.version.release");
 case "$android_ver" in
-  "8.0.0"|"8.1.0") support_status="supported";;
+  "8.0.0"|"8.1.0"|"9") support_status="supported";;
   *) support_status="unsupported";;
 esac;
 ui_print " ";
