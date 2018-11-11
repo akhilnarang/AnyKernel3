@@ -6,7 +6,7 @@
 properties() { '
 kernel.string=Derp by Akhil
 do.devicecheck=1
-do.modules=0
+do.modules=1
 do.cleanup=1
 do.cleanuponabort=0
 device.name1=beryllium
@@ -25,6 +25,16 @@ ramdisk_compression=auto;
 ## AnyKernel methods (DO NOT CHANGE)
 # import patching functions/variables - see for reference
 . /tmp/anykernel/tools/ak2-core.sh;
+
+# Check for MIUI
+is_miui="$(file_getprop /system/build.prop 'ro.miui.ui.version.code')"
+if [[ -z $is_miui ]]; then
+    ui_print "You are running a custom ROM"
+    rm -rf /tmp/anykernel/modules
+else
+    ui_print "You are running MIUI"
+fi
+
 
 ## AnyKernel install
 dump_boot;
