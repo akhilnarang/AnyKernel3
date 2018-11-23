@@ -26,11 +26,12 @@ ramdisk_compression=auto;
 # import patching functions/variables - see for reference
 . /tmp/anykernel/tools/ak2-core.sh;
 
-# Check for MIUI
+# Copy modules to /system on custom ROMs, vendor on MIUI ROMs
+# (Custom ROMs bind mount the module from system to vendor)
 is_miui="$(file_getprop /system/build.prop 'ro.miui.ui.version.code')"
 if [[ -z $is_miui ]]; then
     ui_print "You are running a custom ROM"
-    rm -rf /tmp/anykernel/modules
+    mv /tmp/anykernel/modules/vendor/lib/modules/qca_cld3_wlan.ko /tmp/anykernel/modules/system/lib/modules/wlan.ko
 else
     ui_print "You are running MIUI"
 fi
