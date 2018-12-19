@@ -14,6 +14,7 @@ device.name2=PocoF1
 device.name3=
 device.name4=
 device.name5=
+supported.versions=
 '; } # end properties
 
 # shell variables
@@ -33,7 +34,6 @@ if [[ -z $is_miui ]]; then
 else
     ui_print "You are running MIUI!"
 fi
-
 
 ## AnyKernel install
 dump_boot;
