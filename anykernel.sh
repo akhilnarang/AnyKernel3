@@ -6,7 +6,7 @@
 properties() { '
 kernel.string=Derp by Akhil
 do.devicecheck=1
-do.modules=1
+do.modules=0
 do.cleanup=1
 do.cleanuponabort=0
 device.name1=beryllium
@@ -26,14 +26,12 @@ ramdisk_compression=auto;
 # import patching functions/variables - see for reference
 . /tmp/anykernel/tools/ak2-core.sh;
 
-# Copy modules to /system on custom ROMs, vendor on MIUI ROMs
-# (Custom ROMs bind mount the module from system to vendor)
+# Display if using MIUI or a custom ROM
 is_miui="$(file_getprop /system/build.prop 'ro.miui.ui.version.code')"
 if [[ -z $is_miui ]]; then
-    ui_print "You are running a custom ROM"
-    mv /tmp/anykernel/modules/vendor/lib/modules/qca_cld3_wlan.ko /tmp/anykernel/modules/system/lib/modules/wlan.ko
+    ui_print "You are running a custom ROM!"
 else
-    ui_print "You are running MIUI"
+    ui_print "You are running MIUI!"
 fi
 
 
