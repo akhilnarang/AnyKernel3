@@ -4,7 +4,7 @@
 ## AnyKernel setup
 # begin properties
 properties() { '
-kernel.string=Derp by Akhil
+kernel.string=Illusion by Akhil
 do.devicecheck=1
 do.modules=0
 do.cleanup=1
